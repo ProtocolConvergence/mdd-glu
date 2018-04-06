@@ -1,0 +1,50 @@
+GLU NEWS				-*-indented-text-*-
+  History of user-visible changes.
+
+Please send bug reports to vis-users@colorado.edu
+
+Version 2.4
+
+* CUDD 2.5.0
+
+* Code clean-up.  ARGS no longer used.
+
+Version 2.3
+
+* No user-visible changes.
+
+Version 2.2
+
+* New functions mdd_array_dump_dot and mdd_array_print_cover
+
+* CUDD 2.4.2
+
+Version 2.1
+
+* A new version of CUDD (2.4.1) is included.
+
+* The heap package has been extended.
+
+* Extensive clean up of the code for gcc 3.3 and stricter POSIX compliance.
+
+Version 2.0
+
+* A new version of CUDD (2.3.2) is included.
+
+* A new heap package is included.
+
+* The graph package has been extended.
+
+* Extensive clean-up of the code.
+
+
+Version 1.4
+
+* The supported platforms have changed.  We have dropped SunOs 4 and Ultrix,
+  and we have added Solaris for Intel processors.
+
+* A new version of Cudd (2.3.1) is included.
+
+* Cal now works under Cygwin.
+
+* A patch to Cmu allows it to work with recent versions of GCC.

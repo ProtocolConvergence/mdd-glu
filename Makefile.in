@@ -1,0 +1,796 @@
+# FileName	[ Makefile.in ]
+#
+# PackageName	[ glu ]
+#
+# Synopsis	[ Package-wide Makefile ]
+#
+# Description	[ This file requires GNU's make program.
+#		  Run "configure" to generate the Makefile, or use
+#		  "config.status" (created by configure) to regenerate the
+#		  Makefile after modifying this file.
+#
+#		  Type "gmake help" for a list of valid targets. ]
+#
+# SeeAlso	[ configure.in ]
+#
+# Author	[ Stephen Edwards <sedwards@eecs.berkeley.edu> ]
+#
+# Copyright	[
+#  Copyright (c) 1994-1998 The Regents of the Univ. of California.
+#  All rights reserved.
+#
+#  Permission is hereby granted, without written agreement and without license
+#  or royalty fees, to use, copy, modify, and distribute this software and its
+#  documentation for any purpose, provided that the above copyright notice and
+#  the following two paragraphs appear in all copies of this software.
+#
+#  IN NO EVENT SHALL THE UNIVERSITY OF CALIFORNIA BE LIABLE TO ANY PARTY FOR
+#  DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES ARISING OUT
+#  OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF THE UNIVERSITY OF
+#  CALIFORNIA HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+#  THE UNIVERSITY OF CALIFORNIA SPECIFICALLY DISCLAIMS ANY WARRANTIES,
+#  INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+#  FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS ON AN
+#  "AS IS" BASIS, AND THE UNIVERSITY OF CALIFORNIA HAS NO OBLIGATION TO PROVIDE
+#  MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
+#  ]
+#
+# Revision	[$Id: Makefile.in,v 1.64 2012/01/31 21:44:36 fabio Exp $]
+
+# Default target:
+
+.PHONY : default
+
+default : all
+
+#----------------------------------------------------------------------
+# Lists of packages to compile.  Change this if you are only compiling
+# part of GLU
+#----------------------------------------------------------------------
+
+#PKGS = array
+PKGS = $(ALL_BASIC_PKGS)
+
+#BDD_PKGS = cmu
+BDD_PKGS = $(ALL_BDD_PKGS)
+
+#MDD_PKGS =
+MDD_PKGS = $(ALL_MDD_PKGS)
+
+#----------------------------------------------------------------------
+# This Makefile is designed for three different situations:
+#
+# 1. Single platform build (the default)
+#
+#    All packages listed in the PKGS variable
+#    local_srcdir = master_srcdir = .
+#
+# 2. Multi-platform build
+#
+#    All packages listed in the PKGS variable
+#    local_srcdir = master_srcdir = /where/source/files/reside
+#
+# 3. Multi-platform development (used at Berkeley)
+#
+#    Packages under development listed in the PKGS variable
+#    local_srcdir = ../common
+#    master_srcdir = /projects/glu/glu-devel/common
+#
+#    User has a directory structure that looks like
+#
+#	glu/common/src/		Subdirectory with package source files
+#				under development.
+#
+#	glu/$PLATFORM/		Subdirectory with this Makefile.
+#				Compilation is invoked here.
+#
+#	$PLATFORM is something like "alpha-g" (DEC Alpha, debug version)
+#
+#----------------------------------------------------------------------
+
+#----------------------------------------------------------------------
+# Information about all the packages
+#----------------------------------------------------------------------
+
+# Note: To add another BDD package, add it to this list and add a rule
+# of the form libbdd.a (see the existing ones for an example)
+
+ALL_BASIC_PKGS = array avl bdd epd error graph heap list mem mtr sparse st \
+		 util var_set
+ALL_BDD_PKGS = cal cu cmu
+ALL_MDD_PKGS = mdd
+
+# Generate the list of all packages NOT in the PKGS list
+
+MISSING_PKGS = $(filter-out $(PKGS), $(ALL_BASIC_PKGS))
+MISSING_BDD_PKGS = $(filter-out $(BDD_PKGS), $(ALL_BDD_PKGS))
+MISSING_MDD_PKGS = $(filter-out $(MDD_PKGS), $(ALL_MDD_PKGS))
+
+FULL_PKGS = $(PKGS) $(foreach bdd, $(BDD_PKGS), $(bdd)Bdd $(bdd)Port) \
+	    $(MDD_PKGS)
+FULL_MISSING_PKGS = $(MISSING_PKGS) \
+	$(foreach bdd, $(MISSING_BDD_PKGS), $(bdd)Bdd $(bdd)Port) \
+	$(MISSING_MDD_PKGS)
+
+#----------------------------------------------------------------------
+# For safety
+#----------------------------------------------------------------------
+
+SHELL = /bin/sh
+.SUFFIXES:
+
+#----------------------------------------------------------------------
+# The name of the product and its version
+#----------------------------------------------------------------------
+
+PRODUCT = glu
+VERSION = 2.4
+
+#----------------------------------------------------------------------
+# Source directories
+#----------------------------------------------------------------------
+
+# Directory containing master source files.  This directory is searched
+# for packages NOT listed in the PKGS variable.  Defaults to "."
+# Override with  ./configure --srcdir=
+master_srcdir = @srcdir@
+
+# Directory containing local source files.  This directory is searched
+# for packages listed in the PKGS variable.  Defaults to the master source
+# directory (see above).
+# Override with ./configure --with-local-srcdir=
+local_srcdir =  @local_srcdir@
+
+#----------------------------------------------------------------------
+# Directories used while building
+#----------------------------------------------------------------------
+
+# Directory where object files will be placed during the build
+objectdir =	obj
+
+# Directory where links to header files will be placed during the build
+headerdir =	$(local_srcdir)/include
+
+#----------------------------------------------------------------------
+# Installation names and directories
+#----------------------------------------------------------------------
+
+# Name of the library to create
+LIBRARY =	lib$(PRODUCT).a
+
+# Names of the BDD libraries to create
+BDD_LIBRARIES =	$(foreach bdd, $(BDD_PKGS), lib$(bdd).a)
+
+# Directory in which to install architecture-independent files
+# Set by ./configure --prefix=...
+prefix =	@prefix@
+
+# Directory in which to install architecture-dependent files
+# Set by ./configure --exec-prefix=...
+exec_prefix =	@exec_prefix@
+
+# Directory in which to install libraries
+libdir =	$(exec_prefix)/lib
+
+# Directory in which to install headers
+includedir =	$(prefix)/include
+
+#----------------------------------------------------------------------
+# The following are set by the configure script
+#----------------------------------------------------------------------
+
+AC_FLAGS =	@DEFS@
+RANLIB =	@RANLIB@
+AR =		@AR@
+CC =		@CC@
+CFLAGS =	@CFLAGS@
+INSTALL =	@INSTALL@
+INSTALL_DATA =	@INSTALL_DATA@
+
+#----------------------------------------------------------------------
+# Include the make templates from all the packages
+#
+# Each of these templates (e.g., array/array.make) should contains lines
+# of the form
+#
+# CSRC += source1.c source2.c
+# HEADERS += header1.h header2.h
+# MISC += misc1 misc2
+#
+# For BDD packages (both Port and Bdd), these should be, e.g.,
+#
+# CSRC_cmu += source1.c source2.c
+# HEADERS_cmu += header1.h
+#
+# For the MDD package the definition is
+#
+# CSRC_mdd = source1.c source2.c
+# HEADERS_mdd = header1.h
+# MISC += misc1 misc2
+#----------------------------------------------------------------------
+
+MAKEINCLUDES = \
+	$(foreach package, $(FULL_PKGS), \
+		$(local_srcdir)/src/$(package)/$(package).make )
+
+include $(MAKEINCLUDES)
+
+OBJECTS = $(addprefix $(objectdir)/,$(CSRC:.c=.o))
+
+# Collect the names of all the bdd package source files
+BDD_CSRC = $(foreach bdd_package, $(BDD_PKGS), $(CSRC_$(bdd_package)))
+BDD_HEADERS = $(foreach bdd_package, $(BDD_PKGS), $(HEADERS_$(bdd_package)))
+BDD_OBJECTS = $(addprefix $(objectdir)/,$(BDD_CSRC:.c=.o))
+
+CAL_OBJECTS = $(addprefix $(objectdir)/,$(CSRC_cal:.c=.o))
+CMU_OBJECTS = $(addprefix $(objectdir)/,$(CSRC_cmu:.c=.o))
+CU_OBJECTS = $(addprefix $(objectdir)/,$(CSRC_cu:.c=.o))
+
+# Save the names of the mdd package source files
+MDD_CSRC = $(CSRC_mdd)
+MDD_HEADERS = $(HEADERS_mdd) $(BDD_HEADERS)
+MDD_OBJECTS = $(addprefix $(objectdir)/,$(CSRC_mdd:.c=.o))
+
+#----------------------------------------------------------------------
+# Include the dependency files from each package directory.
+# A missing dependency file does not produce an error.
+#----------------------------------------------------------------------
+
+DEPENDENCIES = $(foreach package, $(PKGS) $(MDD_PKGS) \
+		 $(foreach bdd, $(BDD_PKGS), $(bdd)Bdd $(bdd)Port), \
+		 $(local_srcdir)/src/$(package)/$(package).d)
+
+-include $(DEPENDENCIES)
+
+#----------------------------------------------------------------------
+# Form the the list of directories to search for header files.
+#
+# INCLUDEDIRS looks like "-I/projects/glu/ -I/projects/vis/ ..."
+#----------------------------------------------------------------------
+
+INCLUDEDIRS = \
+	$(foreach package, $(FULL_PKGS), \
+		-I$(local_srcdir)/src/$(package) ) \
+	$(foreach package, $(FULL_MISSING_PKGS), \
+		-I$(master_srcdir)/src/$(package) ) \
+	-I$(objectdir)
+
+#----------------------------------------------------------------------
+# Form the list of directories to search for files listed in make rules.
+#
+# VPATH looks like /projects/vis:/projects/glu/: ...
+#----------------------------------------------------------------------
+
+VPATH = $(local_srcdir): \
+	$(master_srcdir): \
+	$(addprefix :$(local_srcdir)/src/,$(FULL_PKGS)): \
+	$(addprefix :$(master_srcdir)/src/,$(FULL_MISSING_PKGS)): \
+	$(objectdir)
+
+#----------------------------------------------------------------------
+# Definitions for the distribution file
+#----------------------------------------------------------------------
+
+DISTRIBUTION = $(PRODUCT)-$(VERSION)
+
+# Directories to include in the distribution file
+
+DISTDIRS = src obj $(addprefix src/,$(FULL_PKGS)) src/cuBdd/doc \
+	   helpers src/cuBdd/doc/icons
+
+# Build/install helper files
+
+HELPERS = $(addprefix helpers/, \
+	install-sh mkinstalldirs config.guess config.sub dependency.make)
+
+# Files to include in the distribution file
+
+DISTFILES = \
+	README INSTALL NEWS \
+	configure configure.in Makefile.in $(HELPERS) \
+	$(CSRC) $(BDD_CSRC) $(MDD_CSRC) $(HEADERS) $(BDD_HEADERS) \
+	$(MDD_HEADERS) $(MAKEINCLUDES) \
+	$(MISC)
+
+#----------------------------------------------------------------------
+# Variables used by for Revision Control
+#----------------------------------------------------------------------
+
+# The root RCS directory
+rcs_rootdir          = /projects/glu/rcsRoot/common
+
+RCSFILES        = $(CSRC) $(BDD_CSRC) $(MDD_CSRC) $(HEADERS) $(BDD_HEADERS) \
+			$(MDD_HEADERS) $(MISC) $(MAKEINCLUDES)
+
+RCSMISCFILES    = README INSTALL NEWS Makefile.in configure.in localconfigure \
+		  masterconfigure $(HELPERS)
+
+#----------------------------------------------------------------------
+# Implicit rules for compiling and archiving
+#----------------------------------------------------------------------
+
+# For compiling a source file into the object directory
+
+$(objectdir)/%.o : %.c
+	umask 2; $(CC) -c $(CFLAGS) $(AC_FLAGS) $(INCLUDEDIRS) -o $@  $<
+
+# Place object files into an archive
+
+%.a :
+	rm -f $@
+	umask 2; $(AR) cq $@ $^
+	$(RANLIB) $@
+
+######################################################################
+#				RULES				     #
+######################################################################
+
+#:
+#: Useful targets:
+#:
+
+#----------------------------------------------------------------------
+# Rule for getting help
+#----------------------------------------------------------------------
+
+.PHONY : help
+
+#: help -- Print a list of targets
+
+# This prints all lines in this Makefile that begin with #:
+
+help :
+	@sed -n "s/^#://p" Makefile
+
+#----------------------------------------------------------------------
+# Always executed once when the Makefile is run
+#----------------------------------------------------------------------
+
+# Make sure the directory in which to place the objects exists
+
+ignored := $(shell umask 2; test -d $(objectdir) || mkdir $(objectdir))
+
+#----------------------------------------------------------------------
+# Rules to compile and build libraries
+#----------------------------------------------------------------------
+
+.PHONY : all
+
+#:
+#: all (the default) -- Create the libraries
+
+all : $(headerdir) $(LIBRARY) $(BDD_LIBRARIES)
+
+$(LIBRARY) : $(OBJECTS)
+
+libcal.a : $(CAL_OBJECTS) $(MDD_OBJECTS)
+
+libcmu.a : $(CMU_OBJECTS) $(MDD_OBJECTS)
+
+libcu.a : $(CU_OBJECTS) $(MDD_OBJECTS)
+
+$(headerdir) : $(HEADERS) $(MDD_HEADERS)
+	rm -rf $(headerdir)
+	umask 2; mkdir $(headerdir)
+	for header in $(HEADERS) $(MDD_HEADERS); do \
+	  ln $(local_srcdir)/src/*/$$header $(headerdir)/$$header; \
+	done
+
+#----------------------------------------------------------------------
+# Warts
+#----------------------------------------------------------------------
+
+# Work around an optimizer bug in the native Ultrix compiler
+
+ifeq (@target@,mips-dec-ultrix4.5)
+$(objectdir)/calReduce.o : calReduce.c
+	umask 2; $(CC) -c -std1 -g $(AC_FLAGS) $(INCLUDEDIRS) -o $@  $<
+endif
+
+# Work around a bug in gcc 2.7.0
+
+ifeq ($(CC),gcc)
+  ifeq ($(shell gcc --version),2.7.0)
+
+$(objectdir)/cal.o : cal.c
+	umask 2; $(CC) -c -g $(AC_FLAGS) $(INCLUDEDIRS) -o $@  $<
+
+$(objectdir)/calBddSwapVars.o : calBddSwapVars.c
+	umask 2; $(CC) -c -g $(AC_FLAGS) $(INCLUDEDIRS) -o $@  $<
+
+  endif
+endif
+
+#----------------------------------------------------------------------
+# Rules to build test programs
+#----------------------------------------------------------------------
+
+.PHONY : check check-bdd check-cal check-cmu check-cu
+
+#:
+#: check -- Test the libraries (runs check-bdd)
+
+check : check-bdd
+
+#: check-bdd -- Compile simple test programs for each of the BDD packages
+#:              and run them
+
+check-bdd : check-cmu check-cal check-cu
+
+check-cal : obj/checkcal
+	obj/checkcal > checkcal.out
+	@echo "Test appears successful -- results in checkcal.out"
+
+obj/checkcal : libcal.a calTest.c
+	$(CC) -o obj/checkcal -DTEST $(CFLAGS) $(AC_FLAGS) $(INCLUDEDIRS) \
+		$(filter %.c, $^) -L. -lcal
+
+check-cmu : obj/checkcmu
+	obj/checkcmu > checkcmu.out
+	@echo "Test appears successful -- results in checkcmu.out"
+
+obj/checkcmu : libcmu.a $(LIBRARY) testbdd.c
+	$(CC) -o obj/checkcmu $(CFLAGS) $(AC_FLAGS) $(INCLUDEDIRS) \
+		$(filter %.c, $^) -L. -lcmu -l$(PRODUCT)
+
+check-cu : obj/checkcu src/cuBdd/r7x8.1.mat
+	obj/checkcu -p 2 $(filter %.mat, $^) > checkcu.out
+	@echo "Test appears successful -- results in checkcu.out"
+
+obj/checkcu : libcu.a $(LIBRARY) testcudd.c
+	$(CC) -o obj/checkcu $(CFLAGS) $(AC_FLAGS) $(INCLUDEDIRS) \
+		$(filter %.c, $^) -L. -lcu -l$(PRODUCT) -lm
+
+#----------------------------------------------------------------------
+# Rules that produce/delete the dependency file for every package
+#----------------------------------------------------------------------
+
+.PHONY : dependencies cleandependencies
+
+#:
+#: dependencies -- Create a list of dependency files.
+#:                 Useful when modifying header files.
+
+# Invoke the "dependency.make" Makefile on each package subdirectory,
+# passing the path, etc. to it.
+#
+# There's a strange feature in autoconf where lines of the form " VPATH="
+# are removed from the Makefile.  Thus, a flag is placed before the
+# VPATH= argument below.
+
+dependencies:
+ifneq ($(findstring <$(CC)>,<gcc> <g++> <icc> <icpc>),)
+	for pkg in $(PKGS) $(foreach bdd, $(BDD_PKGS), $(bdd)Bdd $(bdd)Port) \
+		    $(MDD_PKGS) ; do \
+		$(MAKE) --no-print-directory \
+			-f $(master_srcdir)/helpers/dependency.make \
+			CC="$(CC)" \
+			CFLAGS="$(CFLAGS)" VPATH="$(local_srcdir)/src/$$pkg" \
+			AC_FLAGS="$(AC_FLAGS)" \
+			INCLUDEDIRS="$(INCLUDEDIRS)" objectdir=$(objectdir) \
+			PKGNAME=$(local_srcdir)/src/$$pkg/$$pkg \
+			$(local_srcdir)/src/$$pkg/$$pkg.d ; \
+	done
+else
+	@echo "dependency requires gcc, g++, icc, or icpc"
+	@echo "Reconfigure with gcc, g++, icc, or icpc"
+endif
+
+cleandependencies:
+	rm -f $(local_srcdir)/src/*/*.d
+
+#----------------------------------------------------------------------
+# Rules for installation
+#----------------------------------------------------------------------
+
+.PHONY : install uninstall installdirs
+
+#:
+#: install -- Install the libraries and headers in libdir and includedir
+
+install : $(LIBRARY) $(BDD_LIBRARIES) installdirs
+	@if [ ! -f $(libdir)/$(LIBRARY) ] ; \
+	then \
+		echo "Installing $(libdir)/$(LIBRARY)"; \
+		$(INSTALL_DATA) $(LIBRARY) $(libdir)/$(LIBRARY); \
+	else \
+		echo "Warning: $(libdir)/$(LIBRARY) already exists" ; \
+	fi
+	@for lib in $(BDD_LIBRARIES); do \
+		if [ ! -f $(libdir)/$$lib ] ; \
+		then \
+			echo "Installing $(libdir)/$$lib"; \
+			$(INSTALL_DATA) $$lib $(libdir)/$$lib; \
+		else \
+			echo "Warning: $(libdir)/$$lib already exists" ; \
+		fi ; \
+	done
+	@for header in $(HEADERS) $(MDD_HEADERS); do \
+		if [ ! -f $(includedir)/$$header ] ; \
+		then \
+			echo "Installing $(includedir)/$$header"; \
+			$(INSTALL_DATA) $(master_srcdir)/src/*/$$header \
+				$(includedir)/$$header; \
+		else \
+			echo "Warning: $(includedir)/$$header already exists"; \
+		fi ; \
+	done
+
+#: uninstall -- Reverse the effects of "install"
+
+uninstall :
+	rm -f $(libdir)/$(LIBRARY) $(addprefix $(libdir)/, $(BDD_LIBRARIES))
+	@for header in $(HEADERS) $(MDD_HEADERS); do \
+		echo "Removing $(includedir)/$$header"; \
+		rm -f $(includedir)/$$header; \
+	done
+
+installdirs :
+	$(master_srcdir)/helpers/mkinstalldirs $(libdir) $(includedir)
+
+#----------------------------------------------------------------------
+# Rules for making a distribution file
+# This only works when ALL of the packages are considered "local"
+#----------------------------------------------------------------------
+
+.PHONY : dist
+
+#:
+#: dist -- Create a tarred, gzipped distribution file
+
+# Warning: "tar" under Digital Unix (on DEC Alphas) writes directories
+# that don't work under SunOS tar
+
+dist : $(DISTRIBUTION).tar.gz
+
+$(DISTRIBUTION).tar.gz : $(DISTFILES)
+ifeq ($(strip $(FULL_MISSING_PKGS)),)
+	rm -rf $(DISTRIBUTION)
+	umask 022; mkdir $(DISTRIBUTION)
+	for dir in $(DISTDIRS); do \
+	  umask 022; mkdir $(DISTRIBUTION)/$$dir; \
+	done
+	@echo "Copying distribution files"
+	@for file in $(patsubst $(local_srcdir)/%, %, $^); do \
+	  echo "  $$file"; \
+	  cp -p $(local_srcdir)/$$file $(DISTRIBUTION)/$$file; \
+	done
+	- chmod -R a+r $(DISTRIBUTION)
+	- chmod -R u+w $(DISTRIBUTION)
+	tar cf - $(DISTRIBUTION) | gzip -9 > $(DISTRIBUTION).tar.gz
+	rm -rf $(DISTRIBUTION)
+else
+	@echo "Missing packages: $(FULL_MISSING_PKGS)"
+	@echo "Make sure PKGS, BDD_PKGS, and MDD_PKGS list all the packages"
+	@exit 1
+endif
+
+#----------------------------------------------------------------------
+# Rules for rebuilding the configure file and Makefile
+#----------------------------------------------------------------------
+
+${master_srcdir}/configure : configure.in
+	cd ${master_srcdir} && autoconf
+	chmod -f 0775 ${master_srcdir}/config*
+
+config.status : configure
+	./config.status --recheck
+
+Makefile : Makefile.in config.status
+	@echo "The master Makefile.in has been changed:"
+	@echo "run config.status"
+	@echo "Warning: This will overwrite any local Makefile modifications"
+	@exit 1
+
+#----------------------------------------------------------------------
+# Rules for cleaning
+#----------------------------------------------------------------------
+
+.PHONY : clean mostlyclean distclean
+
+clean mostlyclean :
+	rm -rf $(objectdir)/* include checkcal.out checkcmu.out checkcu.out
+
+distclean : clean cleandependencies
+	rm -f Makefile config.status config.cache config.log $(LIBRARY) \
+	      $(BDD_LIBRARIES)
+
+#----------------------------------------------------------------------
+# Rule for performing a lint-like check on the source code
+#
+# Note: This requires gcc or g++
+#----------------------------------------------------------------------
+
+.PHONY : check_code
+
+#:
+#: check-code -- Run a lint-like check on the source code.
+#:               (useful for development)
+
+CHECK_FLAGS := -Wall -pedantic
+ifeq ($(CC),gcc)
+  CHECK_FLAGS += -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations
+endif
+
+check-code : $(CSRC) $(BDD_CSRC) $(MDD_CSRC)
+ifneq ($(findstring <$(CC)>,<gcc> <g++>),)
+	@rm -f *.o_checkcode
+	@for file in $^; do \
+	  echo "------------------------ Checking $$file"; \
+	  $(CC) -c $(CFLAGS) $(AC_FLAGS) $(CHECK_FLAGS) \
+		$(VERDATE) $(INCLUDEDIRS) \
+		-o $(objectdir)/checkcode_output.o $$file; \
+	  rm -f $(objectdir)/checkcode_output.o; \
+	done
+	@rm -f *.o_checkcode
+else
+	@echo "check-code requires gcc or g++"
+	@echo "Reconfigure with gcc or g++"
+endif
+
+#----------------------------------------------------------------------
+# Revision control rules
+#
+# May be invoked with command-line overrides, e.g.,
+# gmake RCSFILES=foo.c rcs_co
+# gmake PKGS=array rcs_ci
+#----------------------------------------------------------------------
+
+.PHONY: rcs_ci rcs_co rcs_diff rcs_ident rcs_status
+
+#:
+#:       You may want to invoke the RCS rules with
+#:         gmake "PKGS=tst tbl" rcs_ci
+#:         gmake "RCSFILES=tstMain.c" rcs_co
+#:
+#: rcs_ci -- check in user-modified files and put an updated copy
+#:           in the central area
+
+rcs_ci: $(RCSFILES)
+	@for file in $(patsubst $(local_srcdir)/%, %, $^); \
+	do \
+	  ci -u $(RCSFLAGS) $(local_srcdir)/$$file $(rcs_rootdir)/$$file,v; \
+	  co -u $(RCSFLAGS) $(master_srcdir)/$$file $(rcs_rootdir)/$$file,v; \
+	done
+
+#: rcs_co -- check out files for modification
+
+rcs_co: $(RCSFILES)
+	@for file in $(patsubst $(local_srcdir)/%, %, $^); \
+	do \
+	  co -l $(RCSFLAGS) $(local_srcdir)/$$file $(rcs_rootdir)/$$file,v; \
+	done
+
+#: rcs_diff -- Report differences between local files and checked-in versions
+
+rcs_diff: $(RCSFILES)
+	@for file in $(patsubst $(local_srcdir)/%, %, $^); \
+	do \
+	  rcsdiff $(RCSFLAGS) $(local_srcdir)/$$file $(rcs_rootdir)/$$file,v; \
+	done
+
+#: rcs_ident -- Print the RCS identifier in each file
+
+rcs_ident: $(RCSFILES)
+	@for file in $(patsubst $(local_srcdir)/%, %, $^); \
+	do \
+	  ident $(RCSFLAGS) $(local_srcdir)/$$file; \
+	done
+
+#: rcs_status -- Report who has checked out files
+
+rcs_status: $(RCSFILES)
+	@for file in $(patsubst $(local_srcdir)/%, %, $^); \
+	do \
+	  rlog -L -h $(RCSFLAGS) $(rcs_rootdir)/$$file,v; \
+	done
+
+#----------------------------------------------------------------------
+# RCS rules for common/{Makefile.in, configure.in, localconfigure,
+# masterconfigure, mkinstalldirs, install-sh}
+#----------------------------------------------------------------------
+
+.PHONY : rcs_ci_misc rcs_co_misc rcs_diff_misc
+
+#: rcs_ci_misc -- Check in miscellaneous files, updating central area
+
+rcs_ci_misc: $(RCSMISCFILES)
+	@for file in $(patsubst $(local_srcdir)/%, %, $^); \
+	do \
+	  ci -u $(RCSFLAGS) $(local_srcdir)/$$file $(rcs_rootdir)/$$file,v; \
+	  co -u $(RCSFLAGS) $(master_srcdir)/$$file $(rcs_rootdir)/$$file,v; \
+	done
+
+#: rcs_co_misc -- Check out miscellaneous files
+
+rcs_co_misc: $(RCSMISCFILES)
+	@for file in $(patsubst $(local_srcdir)/%, %, $^); \
+	do \
+	  co -l $(RCSFLAGS) $(local_srcdir)/$$file $(rcs_rootdir)/$$file,v; \
+	done
+
+#: rcs_diff_misc -- Report differences in miscellaneous files
+
+rcs_diff_misc: $(RCSMISCFILES)
+	@for file in $(patsubst $(local_srcdir)/%, %, $^); \
+	do \
+	  rcsdiff $(RCSFLAGS) $(local_srcdir)/$$file $(rcs_rootdir)/$$file,v; \
+	done
+
+#: rcs_ident_misc -- Report RCS identifiers
+
+rcs_ident_misc: $(RCSMISCFILES)
+	@for file in $(patsubst $(local_srcdir)/%, %, $^); \
+	do \
+	  ident $(RCSFLAGS) $(local_srcdir)/$$file; \
+	done
+
+#: rcs_status_misc -- Report checked in/out status, ownership
+
+rcs_status_misc: $(RCSMISCFILES)
+	@for file in $(patsubst $(local_srcdir)/%, %, $^); \
+	do \
+	  rlog -L -h $(RCSFLAGS) $(rcs_rootdir)/$$file,v; \
+	done
+
+#----------------------------------------------------------------------
+# Rules for debugging the Makefile
+#----------------------------------------------------------------------
+
+DEBUG_VARS =	PKGS \
+	BDD_PKGS \
+	ALL_BASIC_PKGS \
+	ALL_BDD_PKGS \
+	ALL_MDD_PKGS \
+	MISSING_PKGS \
+	MISSING_BDD_PKGS \
+	MISSING_MDD_PKGS \
+	FULL_PKGS \
+	FULL_MISSING_PKGS \
+	SHELL \
+	PRODUCT \
+	VERSION \
+	prefix \
+	exec_prefix \
+	master_srcdir \
+	local_srcdir \
+	libdir \
+	includedir \
+	objectdir \
+	headerdir \
+	LIBRARY \
+	BDD_LIBRARIES \
+	AC_FLAGS \
+	RANLIB \
+	CC \
+	CFLAGS \
+	INSTALL \
+	INSTALL_DATA \
+	MAKEINCLUDES \
+	OBJECTS \
+	BDD_CSRC \
+	BDD_HEADERS \
+	CAL_OBJECTS \
+	CMU_OBJECTS \
+	CU_OBJECTS \
+	MDD_CSRC \
+	MDD_HEADERS \
+	MDD_OBJECTS \
+	INCLUDEDIRS \
+	VPATH \
+	DISTRIBUTION \
+	DISTDIRS \
+	DISTFILES \
+	GLU \
+	RCSFILES \
+	rcs_rootdir \
+	RCSMISCFILES
+
+.PHONY : debug-make
+
+#:
+#: debug-make - Print a list of Makefile variables
+
+debug-make:
+	@$(foreach var, $(DEBUG_VARS), echo $(var)=$($(var)) ; )

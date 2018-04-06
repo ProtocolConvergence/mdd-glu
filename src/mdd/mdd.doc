@@ -1,0 +1,965 @@
+   MDD Package Documentation
+   $Source: /projects/development/hsv/CVSRepository/utilities/common/src/mdd/mdd.doc,v $
+   
+   Author: Timothy Kam 
+   $Date: 2001/03/05 17:49:37 $
+   $Revision: 1.3 $
+
+   Copyright 1992 by the Regents of the University of California.
+  
+   All rights reserved.  Permission to use, copy, modify and distribute
+   this software is hereby granted, provided that the above copyright
+   notice and this permission notice appear in all copies.  This software
+   is made available as is, with no warranties.
+
+Multivalued decision diagrams (MDD's) can be created and manipulated using this 
+MDD package.  For details on MDD's, see [1] and [2].  Users need only concern 
+specifying operations in terms of multivalued variables and the package will 
+implicitly map them into BDD's.  The package builds on the newest BDD package
+with improved garbage collection facilities.  The MDD, BDD, as well as the
+"array", "st" and "util" packages are extracted from the MIS package and they
+now reside in a self-contained environment.
+
+The followings describe the MDD interface in terms of function calls available
+to MDD users.  
+
+==== MDD/BDD cross-referencing structure in mdd_manager ========================
+MDD specific information consists of two arrays, mvar_list and bvar_list,
+one for storing information on each multivalued variable (mvar) and another for
+each binary variable.  They should be accessed as:
+    array_t *mvar_list, *bvar_list;
+    mvar_list = mdd_ret_mvar_list(mgr);
+    bvar_list = mdd_ret_bvar_list(mgr);
+
+They also serve as a quick lookup for info between the MDD and BDD variables:
+no. of mvar's:   array_n(mvar_list)
+no. of bvar's:   array_n(bvar_list)
+get mvar of id:  mv = array_fetch(mvar_type, mvar_list, mvar_id)
+get bvar of id:  bv = array_fetch(bvar_type, bvar_list, bvar_id)
+MDD -> BDD:      use mdd_ret_bvar_id(&mvar, i) to index bvar_list or
+                 mdd_ret_bvar(&mvar, i, bvar_list) to get the ith (the order is
+                 msb to lsb) bvar in the encoding of mvar.
+                 
+                 mv = element of mvar_list, of mvar_type
+                 0 <= i < mv.encode_length
+
+BDD -> MDD:      use bv.mdd_id to index mvar_list
+                 bv = element of bvar_list, of bvar_type
+
+struct mvar_type {
+    int mvar_id;                /* mvar id */
+    char *name;                 /* name of mvar */
+    int values;                 /* no. of values mvar can take */
+    int encode_length;          /* no. of binary variables, bvar's, */
+                                /* needed to encode mvar */
+    array_t *bvars;             /* Array of bvar_id's that encode the mvar,
+                                   the ordering of bvars is from the one that encodes 
+                                   the msb to the one that encodes the lsb */
+    int *encoding;              /* internal use only */
+};
+typedef struct mvar_type mvar_type;
+
+struct bvar_type {
+    mdd_t *node;
+    int mvar_id;
+};
+typedef struct bvar_type bvar_type;
+
+struct mdd_hook_type {
+    array_t *mvar_list;
+    array_t *bvar_list;
+};
+typedef struct mdd_hook_type mdd_hook_type;
+
+struct bdd_manager {
+    .....
+    struct {
+	refany network;
+	refany mdd;
+    } hooks;
+    .....
+}
+typedef struct mdd_manager bdd_manager;
+
+==== Interleaved Ordering ======================================================
+Variable ordering is important for compact MDD representation and fast
+computation, by avoiding exponential complexities.  Users must specify an 
+ordering to the initialization routine mdd_init() and extend the ordering
+when registering more variables using routine mdd_create_variables().  As 
+MDD is internally mapped into BDD, ordering heuristics have to take care of:
+	1/ ordering of MDD variables
+	2/ ordering of encoded BDD variables corresponding to each MDD variable
+
+For example, a problem has six multi-valued variables with the following 
+constraints:
+	u > v;
+	w = 1;
+	x < y;
+	y < z;
+
+The encoded binary-variables for u should be interleaved with those for v as
+they are related by the first constraint.  Similarly variables x, y and z are 
+related by x<y<z and their encoded variables should be interleaved with one 
+another.  Encoded variables of w can just follow a natural ordering.  In 
+addition, there is no relationship between the groups of variables {u,v}, {w}, 
+and {x,y,z} so their encoded variables can be ordered one after another. A 
+desired order list of all encoded variables, (bvar_list), which respects these 
+groupings is:
+	u0 < v0 < u1 < v1 < u2 < v2 < w0 < w1 < x0 < y0 < z0 < x1 < y1 < z1
+
+With the MDD package, the users have to specify the following table of
+information to mdd_init(mvar_sizes, mvar_names, mvar_strides) and to 
+mdd_create_variables(mgr, mvar_sizes, mvar_names, mvar_strides), the above 
+bvar_list is derived automatically.
+
+    mvar_names      mvar_values     mvar_strides
+	u		7		2
+	v		7		2
+	w		3		1
+	x		4		3
+	y		4		3
+	z		4		3
+
+mvar_names and mvar_strides are not mandatory.  Supplying a NIL(array_t) to
+mvar_names, the kth mvar would get the name "mv_k" by default.  Also supplying
+a NIL(array_t) to mvar_strides, a stride of 1 is assumed for all variables,
+thus no variable interleaving.
+
+
+==== Functions inherited from BDD package ======================================
+Documents on the following functions are available in ../bdd/bdd.doc:
+
+#define mdd_and bdd_and
+#define mdd_constant bdd_constant
+#define mdd_dup bdd_dup
+#define mdd_equal bdd_equal
+#define mdd_free bdd_free
+#define mdd_get_manager bdd_get_manager
+#define mdd_is_tautology bdd_is_tautology
+#define mdd_ite bdd_ite
+#define mdd_lequal bdd_leq
+#define mdd_not bdd_not
+#define mdd_one bdd_one
+#define mdd_or bdd_or
+#define mdd_size bdd_size
+#define mdd_size_multiple bdd_size_multiple
+#define mdd_top_var_id bdd_top_var_id
+#define mdd_xor bdd_xor
+#define mdd_xnor bdd_xnor
+#define mdd_zero bdd_zero
+
+==== MDD manipulation functions ================================================
+mdd_manager *
+mdd_init(mvar_values, mvar_names, mvar_strides)
+array_t *mvar_values;
+array_t *mvar_names;
+array_t *mvar_strides;
+        Given an array of mvar values (mvar_values), another array of mvar
+        names (mvar_names), and another array of strides (mvar_strides) it 
+	initializes and returns a new mdd_manager which includes mvar_list and 
+	bvar_list information.  mvar_names and mvar_strides are not mandatory.
+	Supplying a NIL(array_t) to mvar_names, the kth mvar would get the 
+	name "mv_k" by default.  Also supplying a NIL(array_t) to mvar_stides, 
+	a stride of 1 is assumed for all variables, thus no variable
+	interleaving.  (see also section on Interleaved Ordering)
+
+
+mdd_manager *
+mdd_init_empty()
+        Calls mdd_init with an array of length zero for mvar_values, and NIL 
+        arrays for mvar_name and mvar_strides.  The affect is to create an 
+        MDD manager with no variables.
+
+
+void
+mdd_create_variables(mgr, mvar_values, mvar_names, mvar_strides)
+mdd_manager *mgr;
+array_t *mvar_values;
+array_t *mvar_names;
+array_t *mvar_strides;
+	User can now add an additional set of mv variables to the manager
+	after the initial mdd_init() has been called.  Given an array of 
+	mvar values (mvar_values), another array of mvar names (mvar_names), 
+	and another array of strides (mvar_strides), it modifies the 
+	the mvar_list and bvar_list information within the mdd_manager mgr.  
+	mvar_names and mvar_strides are not mandatory.
+	Supplying a NIL(array_t) to mvar_names, the kth mvar would get the 
+	name "mv_k" by default.  Also supplying a NIL(array_t) to mvar_stides, 
+	a stride of 1 is assumed for all variables, thus no variable
+	interleaving.  (see also section on Interleaved Ordering)
+
+
+void
+mdd_create_variables_after(mgr, after_mvar_id, mvar_values, mvar_names,
+                                mvar_strides )
+mdd_manager *mgr;
+int after_mvar_id;
+array_t *mvar_values;
+array_t *mvar_names;
+array_t *mvar_strides;
+    Same as mdd_create variables, except that the binary variables in the
+    encoding of the newly created variables are inserted right after the
+    last binary variable in the encoding of the last mvar that after_mvar
+    has been interleaved with.
+
+void
+mdd_create_variables_interleaved(mgr, inter_var_id, no_mvars, mvar_names)
+mdd_manager *mgr;
+int inter_var_id,
+    no_mvars;
+array_t *mvar_names;
+
+    no_mvars mvars are created and their encoding bits are interleaved with
+    those of inter_var. It is assumed that all the new variables have
+    the same range as inter_var.
+
+void
+mdd_array_free(mddArray)
+array_t *mddArray;
+    Frees an array of mdds. If mddArray is NULL, nothing is done.
+
+array_t *
+mdd_array_duplicate(mddArray)
+array_t *mddArray;
+    Duplicates an array of MDDs. Returns a new array of duplicated MDDs.
+    Assumes that the array is not NULL.                                                                                                           
+boolean
+mdd_array_equal(mddArray1, mddArray2)
+array_t *mddArray1, mddArray2;
+   Returns true iff the two mdd arrays contain identical mdds in the same
+   order.
+
+void
+mdd_quit(mgr)
+mdd_manager *mgr;
+	Free up all resources associated with the mdd_manager (and bdd_manager).
+
+mdd_t *
+mdd_case(mgr, mvar, child_list)
+int var;
+array_t *child_list;
+	Given an mvar id and an array of child-functions id's, the MDD CASE 
+	operation is performed on all the child-functions and the resultant 
+	MDD function is returned.  
+
+mdd_t *
+mdd_literal(mgr, mvar, values)
+mdd_manager *mgr;
+int mvar;
+array_t *values;
+	Given an mvar id and an array of values which the mvar can have, the
+	MDD representing a multivalued literal is returned.  The literal is an
+	OR of terms of the form mvar=value.  If mvar can take 5 values 
+	{0,1,2,3,4} to specify the literal (mvar=2 or mvar=4) we would put in 
+	the array "values" the values {2,4}. 
+
+mdd_t *
+mdd_range_mdd(mdd_manager *mgr, array_t *support)
+  Given an array of mvar ids, returns the mdd that has exactly those
+  minterms that are valid assignments to the variables in support.
+  Valid here means within thegiven range.
+
+
+==== Generic Functions =====
+The following generic function calls can build any relation between 1, 2, 3
+variables, with 0 or 1 constants.  Users define the relations by supplying
+characteristic functions, in C, of the variables and constants.  
+
+For example, to build the MDD for relation (x >= y - z), the user could define
+a characteristic function geq_minus3(x,y,z) which returns 1 iff (x >= y - z).
+Then, the following generic function in turn takes the characteristic function 
+as well as the variables as parameters,
+	mdd_func3(mgr, x, y, z, geq_minus3)
+and returns the MDD representing the desired relation.
+
+mdd_t *
+mdd_func1c(mgr, mvar1, constant, func2)
+mdd_manager *mgr;
+int mvar1;
+int constant;
+boolean (*func2)();
+	Given a mvar id, a constant, returns the MDD relation represented by the
+	characteristic function func2(mvar1, constant).
+
+mdd_t *
+mdd_func2(mgr, mvar1, mvar2, func2)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+boolean (*func2)();
+        Given 2 mvar id's, returns the MDD relation represented by the
+        characteristic function func2(mvar1, mvar2).
+
+mdd_t *
+mdd_func2c(mgr, mvar1, mvar2, constant, func3)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+int constant;
+boolean (*func3)();
+        Given 2 mvar id, a constant, returns the MDD relation represented by the
+        characteristic function func3(mvar1, mvar2, constant).
+
+mdd_t *
+mdd_func3(mgr, mvar1, mvar2, mvar3, func3)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+int mvar3;
+boolean (*func3)();
+        Given 3 mvar id's, returns the MDD relation represented by the
+        characteristic function func3(mvar1, mvar2, mvar3).
+
+======== For variables with the same range ========
+==== Predicate relations between a variables and a constant ====
+The following six operations only operate on variables with the same range.
+By taking advantage of ordering of bit computations, these operations
+are much faster to build than the corresponding general operations.  They 
+calls the ITE operator a linear number of times with respect to the number 
+of binary encoding variables.
+(e.g. mdd_eq_s() is faster than mdd_eq(), but the latter can handle variables 
+      of different ranges)
+
+mdd_t *
+mdd_eq_s(mgr, mvar1, mvar2)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 == mvar2) is returned.
+
+mdd_t *
+mdd_neq_s(mgr, mvar1, mvar2)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 != mvar2) is returned.
+
+mdd_t *
+mdd_leq_s(mgr, mvar1, mvar2)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 <= mvar2) is returned.
+
+mdd_t *
+mdd_lt_s(mgr, mvar1, mvar2)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 < mvar2) is returned.
+
+mdd_t *
+mdd_geq_s(mgr, mvar1, mvar2)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 >= mvar2) is returned.
+
+mdd_t *
+mdd_gt_s(mgr, mvar1, mvar2)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 > mvar2) is returned.
+                                             
+======== For variables with different ranges ========
+==== Predicate relations between a variables and a constant ====
+mdd_t *
+mdd_eq_c(mgr, mvar1, constant)
+mdd_manager *mgr;
+int mvar1;
+int constant;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 == constant) is returned.
+
+mdd_t *
+mdd_neq_c(mgr, mvar1, constant)
+mdd_manager *mgr;
+int mvar1;
+int constant;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 != constant) is returned.
+
+mdd_t *
+mdd_leq_c(mgr, mvar1, constant)
+mdd_manager *mgr;
+int mvar1;
+int constant;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 <= constant) is returned.
+
+mdd_t *
+mdd_lt_c(mgr, mvar1, constant)
+mdd_manager *mgr;
+int mvar1;
+int constant;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 < constant) is returned.
+
+mdd_t *
+mdd_geq_c(mgr, mvar1, constant)
+mdd_manager *mgr;
+int mvar1;
+int constant;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 >= constant) is returned.
+
+mdd_t *
+mdd_gt_c(mgr, mvar1, constant)
+mdd_manager *mgr;
+int mvar1;
+int constant;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 > constant) is returned.
+                                             
+==== Predicate relations between 2 variables ====
+mdd_t *
+mdd_eq(mgr, mvar1, mvar2)
+mdd_manager *mgr;
+int mvar1;
+int mvar2; 
+	Given two mvar id's, the MDD representation of the relation
+	(mvar1 == mvar2) is returned.
+	
+mdd_t *
+mdd_neq(mgr, mvar1, mvar2)
+mdd_manager *mgr;
+int mvar1;
+int mvar2; 
+	Given two mvar id's, the MDD representation of the relation
+	(mvar1 != mvar2) is returned.
+	
+mdd_t *
+mdd_leq(mgr, mvar1, mvar2)
+mdd_manager *mgr;
+int mvar1;
+int mvar2; 
+	Given two mvar id's, the MDD representation of the relation
+	(mvar1 <= mvar2) is returned.
+	
+mdd_t *
+mdd_lt(mgr, mvar1, mvar2)
+mdd_manager *mgr;
+int mvar1;
+int mvar2; 
+	Given two mvar id's, the MDD representation of the relation
+	(mvar1 < mvar2) is returned.
+	
+mdd_t *
+mdd_geq(mgr, mvar1, mvar2)
+mdd_manager *mgr;
+int mvar1;
+int mvar2; 
+	Given two mvar id's, the MDD representation of the relation
+	(mvar1 >= mvar2) is returned.
+	
+mdd_t *
+mdd_gt(mgr, mvar1, mvar2)
+mdd_manager *mgr;
+int mvar1;
+int mvar2; 
+	Given two mvar id's, the MDD representation of the relation
+	(mvar1 > mvar2) is returned.
+
+==== Predicate relations between 2 variables and a constant ====
+mdd_t *
+mdd_eq_plus_c(mgr, mvar1, mvar2, constant)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 == mvar2 + constant) is returned.
+
+mdd_t *
+mdd_neq_plus_c(mgr, mvar1, mvar2, constant)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 != mvar2 + constant) is returned.
+
+mdd_t *
+mdd_leq_plus_c(mgr, mvar1, mvar2, constant)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 <= mvar2 + constant) is returned.
+
+mdd_t *
+mdd_lt_plus_c(mgr, mvar1, mvar2, constant)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 < mvar2 + constant) is returned.
+
+mdd_t *
+mdd_geq_plus_c(mgr, mvar1, mvar2, constant)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 >= mvar2 + constant) is returned.
+
+mdd_t *
+mdd_gt_plus_c(mgr, mvar1, mvar2, constant)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 > mvar2 - constant) is returned.
+
+mdd_t *
+mdd_eq_minus_c(mgr, mvar1, mvar2, constant)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 == mvar2 - constant) is returned.
+
+mdd_t *
+mdd_neq_minus_c(mgr, mvar1, mvar2, constant)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 != mvar2 - constant) is returned.
+
+mdd_t *
+mdd_leq_minus_c(mgr, mvar1, mvar2, constant)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 <= mvar2 - constant) is returned.
+
+mdd_t *
+mdd_lt_minus_c(mgr, mvar1, mvar2, constant)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 < mvar2 - constant) is returned.
+
+mdd_t *
+mdd_geq_minus_c(mgr, mvar1, mvar2, constant)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 >= mvar2 - constant) is returned.
+
+mdd_t *
+mdd_gt_minus_c(mgr, mvar1, mvar2, constant)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 > mvar2 - constant) is returned.
+	
+==== Predicate relations between 3 variables ====
+mdd_t *
+mdd_eq_plus(mgr, mvar1, mvar2, mvar3)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 == mvar2 + mvar3) is returned.
+
+mdd_t *
+mdd_neq_plus(mgr, mvar1, mvar2, mvar3)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 != mvar2 + mvar3) is returned.
+
+mdd_t *
+mdd_leq_plus(mgr, mvar1, mvar2, mvar3)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 <= mvar2 + mvar3) is returned.
+
+mdd_t *
+mdd_lt_plus(mgr, mvar1, mvar2, mvar3)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 < mvar2 + mvar3) is returned.
+
+mdd_t *
+mdd_geq_plus(mgr, mvar1, mvar2, mvar3)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 >= mvar2 + mvar3) is returned.
+
+mdd_t *
+mdd_gt_plus(mgr, mvar1, mvar2, mvar3)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 > mvar2 - mvar3) is returned.
+
+mdd_t *
+mdd_eq_minus(mgr, mvar1, mvar2, mvar3)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 == mvar2 - mvar3) is returned.
+
+mdd_t *
+mdd_neq_minus(mgr, mvar1, mvar2, mvar3)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 != mvar2 - mvar3) is returned.
+
+mdd_t *
+mdd_leq_minus(mgr, mvar1, mvar2, mvar3)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 <= mvar2 - mvar3) is returned.
+
+mdd_t *
+mdd_lt_minus(mgr, mvar1, mvar2, mvar3)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 < mvar2 - mvar3) is returned.
+
+mdd_t *
+mdd_geq_minus(mgr, mvar1, mvar2, mvar3)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 >= mvar2 - mvar3) is returned.
+
+mdd_t *
+mdd_gt_minus(mgr, mvar1, mvar2, mvar3)
+mdd_manager *mgr;
+int mvar1;
+int mvar2;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 > mvar2 - mvar3) is returned.
+	
+==== New useful operations ====
+mdd_t *
+mdd_cofactor(mgr, fn, cube)
+mdd_manager *mgr;
+mdd_t *fn;
+mdd_t *cube;
+	Perform the cofactoring of a function 'fn' with respect to a
+	multivalued cube 'cube' using mdd_and_smooth. First all mvars present
+	in 'cube' are extracted, then 'fn' and 'cube' are ANDed together and
+	smoothed with the mvars in 'cube'.
+
+mdd_t *
+mdd_cofactor_minterm(fn, minterm)
+mdd_t *fn;
+mdd_t *minterm;
+	Perform the cofactoring of a function 'fn' with respect to a
+	multivalued minterm 'minterm' using bdd_cofactor.  For cofactoring
+	with respect to a cube, one must use mdd_cofactor() instead.
+
+mdd_t *
+mdd_smooth(mgr, fn, mvars)
+mdd_manager *mgr;
+mdd_t *fn;
+array_t *mvars;
+	Given an MDD function and an array of smoothing variables, mdd_smooth
+	smooths 'fn' with respect to all the mvars.  This operation is equivalent
+	to the existential quantification.  The resultant MDD function is returned.
+
+mdd_t *
+mdd_and_smooth(mgr, f, g, mvars)
+mdd_manager *mgr;
+mdd_t *f;
+mdd_t *g;
+array_t *mvars;
+	Given two MDD functions and an array of smoothing variables, 
+	mdd_and_smooth first AND 'f' and 'g' together and then smooth the
+	intermediate function with respect of the mvars.  The resultant
+	MDD function is returned.
+
+mdd_t *
+mdd_consensus(mgr, fn, mvars)
+mdd_manager *mgr;
+mdd_t *fn;
+array_t *mvars;
+	Given an MDD function and an array of consensus variables, mdd_consensus
+	perform the consensus operation on 'fn' with respect to all the mvars.
+	This operation is equivalent to the universal quantification.  The 
+	resultant MDD function is returned.
+
+mdd_t *
+mdd_substitute(mgr, fn, old_mvars, new_mvars)
+mdd_manager *mgr;
+mdd_t *fn;
+array_t *old_mvars;
+array_t *new_mvars;
+	In function 'fn', multivalued variable old_vars[i] is substituted with
+	the corresponding new_vars[i].  It checks that arrays old_mvars and
+	new_mvars are of the same length, and within them, each corresponding
+	pair of mvar have the same number of values.
+
+array_t *
+mdd_get_support(mgr, fn)
+mdd_manager *mgr;
+mdd_t *fn;
+	Given a function 'fn', mdd_get_support returns an array of multivalued
+	variable id's which is the support of fn.
+
+mdd_t *
+mdd_cproject(mgr, fn, mvars)
+mdd_manager *mgr;
+mdd_t *fn;
+array_t *mvars;
+	Given an MDD function and an array of projecting variables, mdd_cproject
+	returns the cprojection of the 'fn' with respect to all the mvars.  
+        This function can be used for determinisation; refer to is_deterministic().
+
+==== Traversal of MDD ==========================================================
+foreach_mdd_minterm(fn, gen, minterm, var_list)
+mdd_t *fn;
+mdd_gen *gen;
+array_t *minterm;   /* return */
+array_t *var_list;
+
+	The MDD corresponding to fn is traversed via gen, with minterm being
+	filled in for each satisfying assignment of fn.  Each minterm is
+	returned as an array of values which is assigned to the variables
+	specified in the var_list (an array of mvar id's, i.e. int).  If 
+	NIL(array_t) is supplied for var_list, each minterm will be expressed 
+	in terms of the whole multi-valued variable space.  Although the
+	MDD is internally mapped into a BDD, all literals within the returned
+	minterm will be valid in the multi-value sense.  The MDD is traversed 
+	using depth-first search, so the minterms will be returned in a sorted 
+	order according to the literals of each variable.  
+                                      
+	These generators are macros.  Typical usage is:
+
+            foreach_mdd_minterm(fn, gen, minterm, var_list) {
+                /* do something with minterm */
+		array_free(minterm);
+            }
+	    mdd_free(fn);
+
+	Caution: If you are creating new BDD's while iterating through the
+	minterms, and a garbage collection happens to be performed during this 
+	process, then the BDD generator will get lost and an error will result.
+	Upon exit of the foreach loop, the var_list will be deallocated 
+	internally. 
+
+==== Internal functions, not supported =========================================
+void
+mdd_search(mgr, top, phase, minterms)
+mdd_manager *mgr;
+bdd_t *top;
+int phase;
+boolean minterms;
+
+mdd_t *
+mdd_encode(mgr, child_list, highest_vertex)
+mdd_manager *mgr;
+array_t *child_list;
+int highest_vertex;
+	Given an array of child-function nodes (type mdd_t *), and the bvar id
+	of the highest BDD vertex, mdd_encode recursively integer-encodes the  
+	child-functions on the vertex and decrements the vertex id.  This
+	terminate when there are only two child-functions left and the 
+	resultant MDD function is returned.
+
+==== Functions no longer supported =============================================
+mdd_manager *
+mdd_init_name(mvar_values, mvar_names, mvar_strides)
+array_t *mvar_values;
+array_t *mvar_names;
+array_t *mvar_strides;
+        Given an array of mvar values (mvar_values), another array of mvar
+        names (mvar_names), and another array of strides (mvar_strides) it
+        initializes and returns a new mdd_manager which includes mvar_list and
+        bvar_list information.
+
+The suffix "_g" of the following names of operation has been dropped. 
+
+mdd_t *
+mdd_eq_g(mgr, mvar1, constant)
+mdd_manager *mgr;
+int mvar1;
+int constant;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 == constant) is returned.
+
+mdd_t *
+mdd_neq_g(mgr, mvar1, constant)
+mdd_manager *mgr;
+int mvar1;
+int constant;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 != constant) is returned.
+
+mdd_t *
+mdd_leq_g(mgr, mvar1, constant)
+mdd_manager *mgr;
+int mvar1;
+int constant;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 <= constant) is returned.
+
+mdd_t *
+mdd_lt_g(mgr, mvar1, constant)
+mdd_manager *mgr;
+int mvar1;
+int constant;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 < constant) is returned.
+
+mdd_t *
+mdd_geq_g(mgr, mvar1, constant)
+mdd_manager *mgr;
+int mvar1;
+int constant;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 >= constant) is returned.
+
+mdd_t *
+mdd_gt_g(mgr, mvar1, constant)
+mdd_manager *mgr;
+int mvar1;
+int constant;
+        Given two mvar id's, the MDD representation of the relation
+        (mvar1 > constant) is returned.
+                                             
+==== References ================================================================
+[1] T. Kam and R. Brayton.  "Multi-valued Decision Diagram", Master Thesis,
+    UC Berkeley, 1990.  Also, UC Berkeley Electronics Research Laboratory,
+    Memorandum No. UCB/ERL M90/125, 1990
+[2] A. Srinivasan, T. Kam, S. Malik, and R. Brayton.  "Algorithms for Discrete
+    Function Manipulation", Proceedings International Conference CAD (ICCAD-91),
+    pages 92-95, November 1990
+================================================================================
+NEW FUNCTIONS ADDED BY SERDAR
+
+In all of the following functions, the construction of the MDD is done in a bit interleaved manner so that the number of high level mdd_ite calls is linear in the number of bits in the longest argument . If the bdd variables corresponding to the arguments are interleaved, the function takes linear time in the number of bits in the longest variable. For functions with one mdd_id argument, this is always true.
+
+mdd_t *
+mdd_add_s( mgr, sum_id, mvar_id1, mvar_id2 ) /* in1 + in2 = sum */
+mdd_manager *mgr;
+int sum_id,
+    mvar_id1,
+    mvar_id2;
+	
+	The MDD representation of the relation (sum = mvar1 + mvar2) is returned. All MDD variables can have arbitrary ranges. If the number of bits in sum are not sufficient to represent mvar1 + mvar2 the relation value is constructed.
+
+( in1 + in2 = sum (mod sum_length)  )   &&   (in1+in2)(mod 2^sum_length) <= max_sum )  
+
+where sum_length = number of binary variables needed to represent sum and max_sum is the largest value sum can take.
+
+
+mdd_t *
+mdd_mod(mgr, a_mvar_id, b_mvar_id, M) /* a = b (mod M) */
+mdd_manager *mgr;
+int a_mvar_id, 
+    b_mvar_id,
+    M;       /* Modulus */ 
+
+	The MDD representation of the relation ( a = b (mod M) ) is returned.
+All MDD variables can have arbitrary ranges. 
+
+mdd_t *
+build_leq_c(mgr, mvar_id, c) /* var <= c */
+mdd_manager *mgr;
+int mvar_id,
+    c;
+	The MDD representation of the relation  ( var <= c ) is returned.
+
+mdd_t *
+build_lt_c(mgr, mvar_id, c) /* var <= c */
+mdd_manager *mgr;
+int mvar_id,
+    c;
+	The MDD representation of the relation  ( var < c ) is returned.
+
+mdd_t *
+build_geq_c(mgr, mvar_id, c) /* var <= c */
+mdd_manager *mgr;
+int mvar_id,
+    c;
+	The MDD representation of the relation  ( var >= c ) is returned.
+
+mdd_t *
+build_gt_c(mgr, mvar_id, c) /* var <= c */
+mdd_manager *mgr;
+int mvar_id,
+    c;
+	The MDD representation of the relation  ( var > c ) is returned.
+	
+mdd_t *
+mdd_bundle_variables(mgr,  bundle_vars, mdd_var_name, mdd_id )
+mdd_manager *mgr;
+array_t *bundle_vars; /* of mvar_id's */
+char *mdd_var_name;
+int *mdd_id;
+
+It is assumed that bundle_vars is an array of variables that represent a multi-valued variable (msb comes first). The multi-valued variable is constructed and its id is returned in mdd_id. The function returns 0 if the construction was not successful, 1 if it is. In the current implementation, the multi-valued varaibles in bundle_vars cannot be accessed directly after this function is called. This will be modified later.
+
+CAUTION: It is assumed that the variables bundled all have a power of 2 number of values. Otherwise the
+meaning of bundle becomes ambiguous.
+
+bvar_type
+mdd_ret_bvar(mvar_ptr, i, bvar_list)
+mvar_type *mvar_ptr;
+int i;
+array_t *bvar_list; 
+
+Returns the binary variable (bvar) that encodes the ith most significant bit of mvar. Intended use:
+To get the ith msb of variable mv
+
+	bvar_list = mdd_ret_bvar_list(mgr); 
+	bit_i = mdd_ret_bvar(&mv, i, bvar_list);
+
+int
+mdd_ret_bvar_id(mvar_ptr, i)
+mvar_type *mvar_ptr;
+int i;
+array_t *bvar_list; 
+
+Returns the bddId of the bvar that encodes the ith most significant bit of mvar. Intended use:
+To get the id of the ith msb of variable mv
+
+	bit_i_id = mdd_ret_bvar(&mv, i);
+
+
+		
+array_t *
+mdd_ret_mvar_list(mgr)
+mdd_manager *mgr;
+
+Returns the array of mvars in the manager.
+
+array_t *
+mdd_ret_bvar_list(mgr)
+mdd_manager *mgr;
+
+Returns the array of bvars in the manager.
+
+ 	

@@ -1,0 +1,199 @@
+This is release 2.4 of GLU, a set of BDD packages and low-level utilities.
+
+If you downloaded this to compile it with VIS, stop here -- see the README
+file in the VIS distribution for build and installation instructions.
+
+---------------------------------------------------------------------------
+To build GLU, you will need
+
+	* An ANSI C compiler (gcc will do, as will several versions of cc)
+	* GNU's make utility
+	* GNU's gzip utility
+	* Approximately 20 MB of free disk for the build
+	* Approximately 10 MB of free disk space for the installation
+
+---------------------------------------------------------------------------
+* Useful Addresses
+
+For the most recent version of GLU:
+	ftp://vlsi.colorado.edu/pub/vis/
+
+The VIS home page:
+	http://vlsi.colorado.edu/~vis/
+
+For the most recent version of the GNU tools:
+	http://www.gnu.org
+
+---------------------------------------------------------------------------
+This is the list of architecture/operating system/compiler
+combinations we have tested. (For installation with compilers marked
+with (*) please refer to the Platform Specific Instructions.)
+
+        * Intel ia32 / Linux / gcc, g++
+        * Intel x86_64 / Linux / gcc, g++, icc(*)
+	* Intel ia32/x86_64 / Windows XP with Cygwin 1.5.16-1 / gcc, g++(*)
+	* Intel ia32 / Mac OS X / gcc(*)
+
+The following platforms are no longer supported, but should still work.
+
+	* IBM RISC System/6000 / AIX Version 4.3.3 / gcc(*)
+	* Intel ia64 / Linux / gcc
+        * Sun Sparc/ Solaris 2.8 / gcc, g++, cc(*)
+
+The following instructions are for the generic build process.  Before
+building the tool please refer to the section "* Platform Specific
+Instructions".
+
+---------------------------------------------------------------------------
+To build GLU for a single operating system:
+
+* Download the most recent versions of GLU from the address above
+
+* Move to where you would like the GLU source to reside and unpack
+  the distribution:
+
+	% cd /home/vis					# for example
+	% gzip -dc /tmp/glu-2.4.tar.gz | tar xf -
+
+* Move into the glu-2.4 directory and run configure, which will determine
+  some system-specific parameters and create the Makefile:
+
+	% cd glu-2.4
+	% ./configure
+
+  By default, this will use your system's native compiler.  To use gcc,
+  
+        % ./configure --enable-gcc
+
+  (You may wish to do this because you don't have the native compiler
+  installed or because it is not ANSI.)
+
+  Note: For some platforms where VIS is not supported for the native
+  compiler, the default compiler is set to gcc.
+
+  You can also compile glu with g++.  To do so,
+
+        % ./configure --enable-gcc=g++
+
+  Note: The Makefile by default uses the "-g" option for
+  compilation.  The resultant executables may be much larger than
+  those generated without using the "-g" option.  Using the
+  "-g" option however, provides debugging capabilities.
+
+  Note: The following is of interest only to people developing code
+  within vis.  For full debugging support, specify
+  --with-comp-mode=debug.  This will turn off optimization, and turn
+  on the assertions (sanity checks) in the code.  Similarly,
+  --with-comp-mode=purify and --with-comp-mode=quantify will link vis
+  with IBM Rational's Purify or Quantify tool.
+
+* Build the GLU system by running GNU's gmake utility:
+
+	% gmake
+
+  You may not have GNU make installed on your system under the name
+  'gmake' -- try make.  If this fails, you probably need the latest
+  version of GNU's make program -- download it from the address above.
+
+* (Optional) Test the build by invoking
+
+	% gmake check
+
+  This make take some time on slower machines.
+
+* Install the GLU library and its headers:
+
+	% gmake install					# optional
+
+  By default, this will put binaries, libraries, headers, and help files
+  in /usr/local/bin, /usr/local/lib, /usr/local/include, and /usr/local/share
+  respectively.  To choose a different location, provide a default prefix
+  when you invoke configure, e.g., to install in /projects/glu/bin, etc.,
+  use
+
+	% ./configure --prefix=/projects/glu
+
+  when configuring GLU.
+
+---------------------------------------------------------------------------
+To install GLU on multiple operating systems off the same source tree,
+see the file "INSTALL" in this directory.
+---------------------------------------------------------------------------
+
+* Platform Specific Instructions
+
+Note: some instructions apply to platforms we no longer support.
+
+** Little-endian machines:
+
+  vis-cal will occasionally fail when compiled with
+  --with-comp-mode=debug on little-endian machines like the Alphas and
+  the Intel ix86 CPUs.
+
+** x86_64 machines:
+
+  Compilation is possible in both 64 and 32-bit modes.
+
+  For 32-bit compilation with gcc, make sure the appropriate libraries
+  are installed.  On Ubuntu, for instance, you need the multilib-g++
+  package.  Configure with --enable-gcc="gcc -m32".
+
+  With the Intel compiler (icc), the choice between 64 and 32-bit
+  modes is made when the compiler variables are initialized.  Once
+  that is done, configure with --enable-gcc=icc.
+
+** Mac OS X:
+
+  For correct operation of the CMU BDD package, uncomment the definition
+  of USE_MALLOC_FREE at line 126 of src/mem/memint.h.
+
+** Solaris:
+
+  If Sun's C compiler is not installed on your system, use gcc
+  (./configure --enable-gcc).
+
+  Warnings about redefined symbol are harmless, so are the warnings that say
+  "end-of-loop code not reached".
+
+  The target check-cmu (which is executed as part of "make check")
+  fails with Solaris's native compiler unless -dalign is removed from
+  CFLAGS.  Although vis-cmu executes correctly even if compiled with
+  -dalign, if you plan to extensively use vis-cmu (especially develop
+  new code that uses MTBDDs) you should not compile with -dalign.
+
+  The sun cc compiler (Workshop 6 update 1) on ix86 appears to have a
+  bug in the optimization routines.  The -xO4 an -xO5 compiler options
+  will make vis crash.  As a safety precaution, we have changed the
+  optimization flag to be -xO3 for all Sun platforms that use the cc
+  compiler.  You can try higher optimization flags on your machine.
+  In general, it is hard to determine cc options that will give
+  optimal results on every platform, so it may pay off to play around
+  with the optimization options.
+
+** MS Windows with Cygwin:
+
+  You need Red Hat's Cygwin environment (freely available from
+  http://www.cygwin.com) to build GLU and VIS.
+
+  With Cygwin the configuration script automatically selects gcc.
+
+** AIX:
+
+  The configuration script automatically selects gcc.  The cal package
+  occasionally produces incorrect result if compiled with optimization
+  turned on.  If you plan to use the cal BDD package with AIX, you
+  should configure glu with --with-comp-mode=debug.
+
+** DEC Alpha:
+
+  Warnings about MIN and MAX are harmless. 
+  Warnings in the cuBdd package related to floating point are
+  also harmless.
+
+  The cc compiler will use 32-bit pointers by default.  To use 64-bit
+  pointers, invoke configure as follows: 
+
+	% ./configure --enable-64
+
+  The gcc compiler will always use 64-bit pointers.
+
