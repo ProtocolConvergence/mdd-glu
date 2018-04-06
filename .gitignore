@@ -1,0 +1,9 @@
+/Makefile
+/config.log
+/config.status
+/include/
+/libcal.a
+/libcmu.a
+/libcu.a
+/libglu.a
+/obj/
