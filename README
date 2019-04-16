@@ -55,10 +55,11 @@ To build GLU for a single operating system:
 	% cd /home/vis					# for example
 	% gzip -dc /tmp/glu-2.4.tar.gz | tar xf -
 
-* Move into the glu-2.4 directory and run configure, which will determine
-  some system-specific parameters and create the Makefile:
+* Move into the glu-2.4 directory and run autoconf and configure, which
+  will determine some system-specific parameters and create the Makefile:
 
 	% cd glu-2.4
+	% autoconf
 	% ./configure
 
   By default, this will use your system's native compiler.  To use gcc,
