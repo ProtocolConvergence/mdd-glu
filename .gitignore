@@ -1,6 +1,8 @@
 /Makefile
+/autom4te.cache/
 /config.log
 /config.status
+/configure
 /include/
 /libcal.a
 /libcmu.a
