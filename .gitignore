@@ -1,5 +1,6 @@
 /Makefile
 /autom4te.cache/
+/bld/
 /config.log
 /config.status
 /configure

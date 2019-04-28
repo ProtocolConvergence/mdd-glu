@@ -54,7 +54,46 @@ target_include_directories(glu PRIVATE
   util
   )
 
+add_library(mdd OBJECT
+  mdd/mdd_add.c
+  mdd/mdd_andsmoot.c
+  mdd/mdd_bund.c
+  mdd/mdd_case.c
+  mdd/mdd_cofactor.c
+  mdd/mdd_consensus.c
+  mdd/mdd_dot.c
+  mdd/mdd_func1c.c
+  mdd/mdd_func2.c
+  mdd/mdd_func2c.c
+  mdd/mdd_func2cmod.c
+  mdd/mdd_func3.c
+  mdd/mdd_ineq_s.c
+  mdd/mdd_init.c
+  mdd/mdd_intv.c
+  mdd/mdd_iter.c
+  mdd/mdd_literal.c
+  mdd/mdd_mod.c
+  mdd/mdd_quit.c
+  mdd/mdd_search.c
+  mdd/mdd_smooth.c
+  mdd/mdd_substit.c
+  mdd/mdd_support.c
+  mdd/mdd_uminus.c
+  mdd/mdd_util.c
+  mdd/mvar2bdds.c
+  )
+target_include_directories(mdd PRIVATE
+  array
+  avl
+  epd
+  bdd
+  st
+  util
+  var_set
+  )
+
 add_library(cal STATIC
+  $<TARGET_OBJECTS:mdd>
   calBdd/calApplyReduce.c
   calBdd/calAssociation.c
   calBdd/calBddCompose.c
@@ -103,6 +142,7 @@ target_include_directories(cal PRIVATE
   )
 
 add_library(cmu STATIC
+  $<TARGET_OBJECTS:mdd>
   cmuBdd/bddapply.c
   cmuBdd/bddassoc.c
   cmuBdd/bddblk.c
@@ -145,6 +185,7 @@ target_include_directories(cmu PRIVATE
   )
 
 add_library(cu STATIC
+  $<TARGET_OBJECTS:mdd>
   cuBdd/cuddAddAbs.c
   cuBdd/cuddAddApply.c
   cuBdd/cuddAddFind.c
