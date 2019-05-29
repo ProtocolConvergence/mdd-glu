@@ -2,17 +2,86 @@ cmake_minimum_required(VERSION 2.8)
 
 project(mdd-glu)
 
+include(CheckIncludeFile)
+include(CheckSymbolExists)
+include(CheckTypeSize)
+include(TestBigEndian)
+
+
+### Maybe these are important?
+#-DPAGE_SIZE=4096
+#-DLG_PAGE_SIZE2
+
+### Make it fast.
+### But also make Protocon not crash in OpenMP mode due to a race condition...
+add_compile_options(
+  -g -O3 -mtune=native
+  -malign-double
+  )
+add_definitions(
+  -DNDEBUG
+  )
+
+### Basic assumed stuff.
 add_definitions(
   -DHAVE_ASSERT_H
-  -DHAVE_ERRNO_H
-  -DHAVE_GETENV
-  -DHAVE_STRCHR
   -DHAVE_STDARG_H
   -DHAVE_SYS_FILE_H
   -DHAVE_SYS_STAT_H
-  -DHAVE_UNISTD_H
   -DSTDC_HEADERS
+
+  -DHAVE_GETENV
+  -DHAVE_IEEE_754
+  -DHAVE_STRCHR
+  -DHAVE_STRSTR
   )
+
+### Type sizes.
+check_type_size("int" SIZEOF_INT)
+check_type_size("long" SIZEOF_LONG)
+check_type_size("void*" SIZEOF_VOID_P)
+add_definitions(
+  -DSIZEOF_INT=${SIZEOF_INT}
+  -DSIZEOF_LONG=${SIZEOF_LONG}
+  -DSIZEOF_VOID_P=${SIZEOF_VOID_P}
+  )
+
+### Endianness (of floating point... so maybe not the best check here).
+test_big_endian(EPD_BIG_ENDIAN)
+if (EPD_BIG_ENDIAN)
+  add_definitions(-DEPD_BIG_ENDIAN)
+endif ()
+
+
+### Check system-dependent includes.
+function (check_include_to_define include_name definition_flag)
+  check_include_file(${include_name} tmp)
+  if (tmp)
+    add_definitions(${definition_flag})
+  endif ()
+endfunction ()
+
+check_include_to_define("stdarg.h" -DHAVE_STDARG_H)
+check_include_to_define("errno.h" -DHAVE_ERRNO_H)
+check_include_to_define("pwd.h" -DHAVE_PWD_H)
+check_include_to_define("sys/resource.h" -DHAVE_SYS_RESOURCE_H)
+check_include_to_define("sys/time.h" -DHAVE_SYS_TIME_H)
+check_include_to_define("sys/times.h" -DHAVE_SYS_TIMES_H)
+check_include_to_define("sys/types.h" -DHAVE_SYS_TYPES_H)
+check_include_to_define("unistd.h" -DHAVE_UNISTD_H)
+
+
+### Check system-dependent symbols.
+function (check_symbol_to_define symbol_name include_files definition_flag)
+  check_symbol_exists(${symbol_name} ${include_files} tmp)
+  if (tmp)
+    add_definitions(${definition_flag})
+  endif ()
+endfunction ()
+
+check_symbol_to_define("valloc" "stdlib.h" -DHAVE_VALLOC)
+check_symbol_to_define("getrlimit" "sys/time.h;sys/resource.h" -DHAVE_GETRLIMIT)
+
 
 add_library(glu STATIC
   array/array.c
