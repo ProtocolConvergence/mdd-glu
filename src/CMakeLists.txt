@@ -16,7 +16,6 @@ include(TestBigEndian)
 ### But also make Protocon not crash in OpenMP mode due to a race condition...
 add_compile_options(
   -g -O3 -mtune=native
-  -malign-double
   )
 add_definitions(
   -DNDEBUG
