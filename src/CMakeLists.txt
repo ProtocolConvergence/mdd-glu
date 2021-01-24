@@ -1,6 +1,3 @@
-cmake_minimum_required(VERSION 2.8)
-
-project(mdd-glu)
 
 include(CheckIncludeFile)
 include(CheckSymbolExists)
@@ -329,3 +326,16 @@ target_include_directories(cu PRIVATE
   util
   var_set
   )
+
+
+install(TARGETS glu mdd cal cmu cu)
+install(FILES
+  "array/array.h"
+  "avl/avl.h"
+  "epd/epd.h"
+  "bdd/bdd.h"
+  "mdd/mdd.h"
+  "st/st.h"
+  "util/util.h"
+  "var_set/var_set.h"
+  TYPE INCLUDE)
