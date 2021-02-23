@@ -69,9 +69,9 @@ check_include_to_define("unistd.h" -DHAVE_UNISTD_H)
 
 ### Check system-dependent symbols.
 function (check_symbol_to_define symbol_name include_files definition_flag)
-  check_symbol_exists(${symbol_name} ${include_files} tmp)
+  check_symbol_exists("${symbol_name}" "${include_files}" tmp)
   if (tmp)
-    add_definitions(${definition_flag})
+    add_definitions("${definition_flag}")
   endif ()
 endfunction ()
 
