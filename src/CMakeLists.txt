@@ -328,7 +328,9 @@ target_include_directories(cu PRIVATE
   )
 
 
-install(TARGETS glu mdd cal cmu cu)
+install(TARGETS glu mdd cal cmu cu
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib)
 install(FILES
   "array/array.h"
   "avl/avl.h"
@@ -338,4 +340,4 @@ install(FILES
   "st/st.h"
   "util/util.h"
   "var_set/var_set.h"
-  TYPE INCLUDE)
+  DESTINATION include)
