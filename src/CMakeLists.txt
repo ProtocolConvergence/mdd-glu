@@ -328,7 +328,7 @@ target_include_directories(cu PRIVATE
   )
 
 
-install(TARGETS glu mdd cal cmu cu
+install(TARGETS glu cal cmu cu
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib)
 install(FILES
