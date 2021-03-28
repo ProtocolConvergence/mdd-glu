@@ -20,6 +20,7 @@ add_definitions(
 
 ### Basic assumed stuff.
 add_definitions(
+  -DUSE_MALLOC_FREE
   -DHAVE_ASSERT_H
   -DHAVE_STDARG_H
   -DHAVE_SYS_FILE_H
