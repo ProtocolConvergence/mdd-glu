@@ -1,10 +1,14 @@
+/bazel-bin
+/bazel-out
+/bazel-mdd-glu
+/bazel-testlogs
+
 /Makefile
 /autom4te.cache/
 /bld/
 /config.log
 /config.status
 /configure
-/include/
 /libcal.a
 /libcmu.a
 /libcu.a

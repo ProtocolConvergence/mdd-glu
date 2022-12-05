@@ -1,0 +1,19 @@
+
+cc_library(
+    name = "mdd_glu_cudd_lib",
+    hdrs = [
+        "include/mdd-glu/array.h",
+        "include/mdd-glu/avl.h",
+        "include/mdd-glu/epd.h",
+        "include/mdd-glu/bdd.h",
+        "include/mdd-glu/mdd.h",
+        "include/mdd-glu/st.h",
+        "include/mdd-glu/util.h",
+        "include/mdd-glu/var_set.h",
+    ],
+    deps = [
+        "//src:cu",
+    ],
+    includes = ["include"],
+    visibility = ["//visibility:public"],
+)

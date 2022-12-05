@@ -112,13 +112,7 @@ add_library(glu STATIC
   util/tmpfile.c
   var_set/var_set.c
   )
-target_include_directories(glu PRIVATE
-  array
-  graph
-  list
-  st
-  util
-  )
+target_include_directories(glu PRIVATE local_include)
 
 add_library(mdd OBJECT
   mdd/mdd_add.c
@@ -148,15 +142,7 @@ add_library(mdd OBJECT
   mdd/mdd_util.c
   mdd/mvar2bdds.c
   )
-target_include_directories(mdd PRIVATE
-  array
-  avl
-  epd
-  bdd
-  st
-  util
-  var_set
-  )
+target_include_directories(mdd PRIVATE local_include)
 
 add_library(cal STATIC
   $<TARGET_OBJECTS:mdd>
@@ -196,16 +182,7 @@ add_library(cal STATIC
   calPort/calPort.c
   calPort/calPortIter.c
   )
-target_include_directories(cal PRIVATE
-  array
-  avl
-  bdd
-  calBdd
-  epd
-  st
-  util
-  var_set
-  )
+target_include_directories(cal PRIVATE local_include calBdd)
 
 add_library(cmu STATIC
   $<TARGET_OBJECTS:mdd>
@@ -238,17 +215,7 @@ add_library(cmu STATIC
   cmuPort/cmuPort.c
   cmuPort/cmuPortIter.c
   )
-target_include_directories(cmu PRIVATE
-  array
-  avl
-  cmuBdd
-  bdd
-  epd
-  mem
-  st
-  util
-  var_set
-  )
+target_include_directories(cmu PRIVATE local_include cmuBdd)
 
 add_library(cu STATIC
   $<TARGET_OBJECTS:mdd>
@@ -316,17 +283,7 @@ add_library(cu STATIC
   cuPort/cuPort.c
   cuPort/cuPortIter.c
   )
-target_include_directories(cu PRIVATE
-  array
-  avl
-  bdd
-  cuBdd
-  epd
-  mtr
-  st
-  util
-  var_set
-  )
+target_include_directories(cu PRIVATE local_include cuBdd)
 
 
 install(TARGETS glu cal cmu cu
@@ -341,4 +298,4 @@ install(FILES
   "st/st.h"
   "util/util.h"
   "var_set/var_set.h"
-  DESTINATION include)
+  DESTINATION "include/mdd-glu")
