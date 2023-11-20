@@ -5,6 +5,7 @@ cc_library(
         "avl/avl.c",
         "epd/epd.c",
         "error/error.c",
+        "error/error.h",
         "graph/graph.c",
         "graph/graph_dfs.c",
         "graph/graph.h",

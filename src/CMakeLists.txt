@@ -80,7 +80,7 @@ check_symbol_to_define("valloc" "stdlib.h" -DHAVE_VALLOC)
 check_symbol_to_define("getrlimit" "sys/time.h;sys/resource.h" -DHAVE_GETRLIMIT)
 
 
-add_library(glu STATIC
+add_library(MddGlu_glu STATIC
   array/array.c
   avl/avl.c
   epd/epd.c
@@ -111,10 +111,12 @@ add_library(glu STATIC
   util/texpand.c
   util/tmpfile.c
   var_set/var_set.c
-  )
-target_include_directories(glu PRIVATE local_include)
+)
+target_include_directories(MddGlu_glu PRIVATE
+  "local_include"
+)
 
-add_library(mdd OBJECT
+add_library(MddGlu_mdd OBJECT
   mdd/mdd_add.c
   mdd/mdd_andsmoot.c
   mdd/mdd_bund.c
@@ -141,11 +143,13 @@ add_library(mdd OBJECT
   mdd/mdd_uminus.c
   mdd/mdd_util.c
   mdd/mvar2bdds.c
-  )
-target_include_directories(mdd PRIVATE local_include)
+)
+target_include_directories(MddGlu_mdd PRIVATE
+  "local_include"
+)
 
-add_library(cal STATIC
-  $<TARGET_OBJECTS:mdd>
+add_library(MddGlu_cal STATIC
+  $<TARGET_OBJECTS:MddGlu_mdd>
   calBdd/calApplyReduce.c
   calBdd/calAssociation.c
   calBdd/calBddCompose.c
@@ -181,11 +185,14 @@ add_library(cal STATIC
   calBdd/calUtil.c
   calPort/calPort.c
   calPort/calPortIter.c
-  )
-target_include_directories(cal PRIVATE local_include calBdd)
+)
+target_include_directories(MddGlu_cal PRIVATE
+  "calBdd"
+  "local_include"
+)
 
-add_library(cmu STATIC
-  $<TARGET_OBJECTS:mdd>
+add_library(MddGlu_cmu STATIC
+  $<TARGET_OBJECTS:MddGlu_mdd>
   cmuBdd/bddapply.c
   cmuBdd/bddassoc.c
   cmuBdd/bddblk.c
@@ -214,11 +221,14 @@ add_library(cmu STATIC
   cmuBdd/mtbdd.c
   cmuPort/cmuPort.c
   cmuPort/cmuPortIter.c
-  )
-target_include_directories(cmu PRIVATE local_include cmuBdd)
+)
+target_include_directories(MddGlu_cmu PRIVATE
+  "cmuBdd"
+  "local_include"
+)
 
-add_library(cu STATIC
-  $<TARGET_OBJECTS:mdd>
+add_library(MddGlu_cu STATIC
+  $<TARGET_OBJECTS:MddGlu_mdd>
   cuBdd/cuddAddAbs.c
   cuBdd/cuddAddApply.c
   cuBdd/cuddAddFind.c
@@ -282,13 +292,16 @@ add_library(cu STATIC
   cuBdd/cuddZddUtil.c
   cuPort/cuPort.c
   cuPort/cuPortIter.c
-  )
-target_include_directories(cu PRIVATE local_include cuBdd)
+)
+target_include_directories(MddGlu_cu PRIVATE
+  "cuBdd"
+  "local_include"
+)
 
 
-install(TARGETS glu cal cmu cu
-  ARCHIVE DESTINATION lib
-  LIBRARY DESTINATION lib)
+install(TARGETS MddGlu_glu MddGlu_cal MddGlu_cmu MddGlu_cu
+  ARCHIVE DESTINATION "lib"
+  LIBRARY DESTINATION "lib")
 install(FILES
   "array/array.h"
   "avl/avl.h"
